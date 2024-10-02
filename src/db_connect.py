@@ -12,7 +12,7 @@ def get_table_name_from_header(table_header: List[str]) -> List[str]:
     Returns:
         List[str]: A list of extracted table names.
     """
-    return [item.split()[0].strip('"') for item in table_header]
+    return [item.split('" ')[0].strip('"') for item in table_header]
 
 class DbConnect:
     """Class to manage PostgreSQL database connections and operations."""
@@ -69,12 +69,8 @@ class DbConnect:
         """
 
         try:
-            if not self.is_connected:
-                self._get_connector()
-
-            if not self.connector:
-                self._get_connector()
-
+            self._get_connector()
+            
             cur = self.connector.cursor()
             cur.execute(create_table_query)
             self.connector.commit()
@@ -115,7 +111,6 @@ class DbConnect:
             return False
         finally:
             if self.connector:
-                # cur.close()
                 self.close_connector()
 
     def add_data_from_data_frame(self, table_name: str, data_frame: pd.DataFrame) -> None:
@@ -129,7 +124,7 @@ class DbConnect:
             table_header = generate_header_from_dataframe(data_frame)
             column_names = get_table_name_from_header(table_header)
 
-            column_names = ', '.join(column_names)
+            column_names = ', '.join([f'"{col}"' for col in column_names])
 
             if not self.is_table_exists(table_name):
                 self.create_table(table_name, table_header)
@@ -154,7 +149,6 @@ class DbConnect:
 
         finally:
             if self.connector:
-                # cur.close()
                 self.connector.close()
 
     def drop_table(self, table_name: str) -> None:
@@ -177,7 +171,6 @@ class DbConnect:
                 self.connector.rollback()
         finally:
             if self.connector:
-                # cur.close()
                 self.close_connector()
 
     def fetch_data_by_id(self, table_name: str, record_id: int) -> tuple:
@@ -202,7 +195,6 @@ class DbConnect:
             return None
         finally:
             if self.connector:
-                # cur.close()
                 self.close_connector()
 
     def run_custom_query(self, query: str, values: tuple) -> Optional[tuple]:
@@ -225,5 +217,4 @@ class DbConnect:
             return None
         finally:
             if self.connector:
-                # cur.close()
                 self.close_connector()

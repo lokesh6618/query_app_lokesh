@@ -65,8 +65,15 @@ class QueryApp(QWidget):
         """
         table_header = generate_header_from_csv(filepath)
         table_name = get_filename_from_filepath(filepath)
+        table_name = table_name.lower()
 
-        self.db_connector.create_table(table_name, table_header)
+        if not self.db_connector.is_table_exists(table_name):
+            self.db_connector.create_table(table_name, table_header)
+
+            # self.db_connector.add_data_from_data_frame(
+            #     table_name,
+            #     get_dataframe_from_csv(filepath)
+            # )
 
         self.clear_existing_fields()
         self.add_query_fields(get_dataframe_from_csv(filepath))
@@ -100,12 +107,14 @@ class QueryApp(QWidget):
         """Executes a query to retrieve records from the current table where the 'make' field 
         matches the specified value.
         Args:
-            selected_make (str): The value to match against the 'make' field in the query.
+            selected_make (str): The value to match against the "Make" field in the query.
         Returns:
             None
         """
         current_table = get_filename_from_filepath(self.current_file)
+        current_table = current_table.lower()
 
-        query = f"SELECT * FROM {current_table} WHERE make = %s;"
+        query = f'SELECT * FROM {current_table} WHERE "Make" = %s;'
 
-        self.db_connector.run_custom_query(query, (selected_make,))
+        result = self.db_connector.run_custom_query(query, (selected_make,))
+        print(result)
