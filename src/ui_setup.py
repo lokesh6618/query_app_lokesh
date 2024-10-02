@@ -41,3 +41,16 @@ class QueryApp(QWidget):
         self.layout.addLayout(self.query_grid)
 
         self.setLayout(self.layout)
+
+    def open_file_dialog(self) -> None:
+        """Open file dialog to select a CSV file."""
+        filepath, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open CSV",
+            os.path.join(os.getcwd(), "tests", "data"),
+            "CSV Files (*.csv)"
+        )
+
+        if filepath:
+            self.file_label.setText(filepath)
+            self.current_file = filepath
