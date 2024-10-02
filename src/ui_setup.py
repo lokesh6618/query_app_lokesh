@@ -12,7 +12,9 @@ from PySide2.QtWidgets import (
     QWidget,
 )
 
+from .data_parser import generate_header_from_csv, get_dataframe_from_csv
 from .db_connect import DbConnect
+from .utils import get_filename_from_filepath
 
 class QueryApp(QWidget):
     """Class for the main query application UI."""
@@ -54,3 +56,56 @@ class QueryApp(QWidget):
         if filepath:
             self.file_label.setText(filepath)
             self.current_file = filepath
+            self.process_csv(filepath)
+
+    def process_csv(self, filepath: str) -> None:
+        """Process the selected CSV file to create a table and query fields.
+        Args:
+            filepath (str): Path of the selected CSV file.
+        """
+        table_header = generate_header_from_csv(filepath)
+        table_name = get_filename_from_filepath(filepath)
+
+        self.db_connector.create_table(table_name, table_header)
+
+        self.clear_existing_fields()
+        self.add_query_fields(get_dataframe_from_csv(filepath))
+
+    def clear_existing_fields(self) -> None:
+        """Clear existing query fields in the UI."""
+        for i in reversed(range(self.query_grid.count())):
+            widget = self.query_grid.itemAt(i).widget()
+            if widget is not None:
+                widget.deleteLater()
+
+    def add_query_fields(self, data_frame: pd.DataFrame) -> None:
+        """Add query fields based on the DataFrame columns.
+        Args:
+            data_frame (pd.DataFrame): DataFrame containing the data.
+        """        
+        for i, col in enumerate(data_frame.columns):
+            if col == "Make":
+                make_options = data_frame["Make"].unique()
+                make_combo = QComboBox()
+                make_combo.addItems(make_options)
+                make_combo.currentTextChanged.connect(self.process_make_fields)
+                self.query_grid.addWidget(QLabel("Make"), 0, 0)
+                self.query_grid.addWidget(make_combo, 0, 1)
+
+            self.query_grid.addWidget(QLabel(col), i+1, 0)
+            query_field = QLineEdit()
+            self.query_grid.addWidget(query_field, i+1, 1)
+
+    def process_make_fields(self, selected_make) -> None:
+        """Executes a query to retrieve records from the current table where the 'make' field 
+        matches the specified value.
+        Args:
+            selected_make (str): The value to match against the 'make' field in the query.
+        Returns:
+            None
+        """
+        current_table = get_filename_from_filepath(self.current_file)
+
+        query = f"SELECT * FROM {current_table} WHERE make = %s;"
+
+        self.db_connector.run_custom_query(query, (selected_make,))
