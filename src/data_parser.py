@@ -25,7 +25,7 @@ def generate_header_from_dataframe(data_frame: pd.DataFrame) -> List[str]:
             columns.append(f'"{col}" FLOAT')
         else:
             columns.append(f'"{col}" VARCHAR(255)')
-    
+
     return columns
 
 def generate_header_from_csv(filepath: str) -> List[str]:
@@ -36,5 +36,5 @@ def generate_header_from_csv(filepath: str) -> List[str]:
         List[str]: List of column definitions suitable for SQL table creation.
     """
     df = get_dataframe_from_csv(filepath)
-   
+
     return generate_header_from_dataframe(df)

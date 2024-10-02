@@ -27,7 +27,7 @@ class DbConnect:
         self.connector = None
 
         self._get_connector()
-    
+
     def _get_connector(self) -> None:
         """Establish a connection to the PostgreSQL database."""
         try:
@@ -46,7 +46,7 @@ class DbConnect:
         """Close the database connection."""
         if self.connector:
             self.connector.close()
-    
+
     def is_connected(self) -> bool:
         """
         Check if the database connection is still active.
@@ -88,7 +88,7 @@ class DbConnect:
             if self.connector:
                 cur.close()
                 self.connector.close()
-    
+
     def is_table_exists(self, table_name: str) -> bool:
         """Check if a table exists in the database.
         Args:
@@ -117,7 +117,7 @@ class DbConnect:
             if self.connector:
                 # cur.close()
                 self.close_connector()
-    
+
     def add_data_from_data_frame(self, table_name: str, data_frame: pd.DataFrame) -> None:
         """
         Insert data from a DataFrame into the specified table.
@@ -136,17 +136,17 @@ class DbConnect:
 
             if not self.is_connected():
                 self._get_connector()
-            
+
             cur = self.connector.cursor()
-            
+
             for index, row in data_frame.iterrows():
                 values = tuple(row)
                 placeholders = ', '.join(["%s"] * len(values))
                 insert_query = f"INSERT INTO {table_name} ({column_names}) VALUES ({placeholders});"
                 cur.execute(insert_query, values)
-            
+
             self.connector.commit()
-        
+
         except Exception as e:
             print(f"Error while adding data from data frame: {e}")
             if self.connector:
@@ -165,7 +165,7 @@ class DbConnect:
             Exception: If there is an error during the table drop operation.
         """
         drop_table_query = f"DROP TABLE IF EXISTS {table_name};"
-        
+
         try:
             self._get_connector()
             cur = self.connector.cursor()
@@ -181,7 +181,8 @@ class DbConnect:
                 self.close_connector()
 
     def fetch_data_by_id(self, table_name: str, record_id: int) -> tuple:
-        """Fetch a row from the specified table where the 'id' column matches the provided record ID.
+        """Fetch a row from the specified table where the 'id' column 
+           matches the provided record ID.
         Args:
             table_name (str): The name of the table to query.
             record_id (int): The ID of the record to fetch.
@@ -189,7 +190,7 @@ class DbConnect:
             tuple: The row data that matches the ID, or None if not found.
         """
         query = f"SELECT * FROM {table_name} WHERE id = %s;"
-        
+
         try:
             self._get_connector()
             cur = self.connector.cursor()
@@ -203,7 +204,7 @@ class DbConnect:
             if self.connector:
                 # cur.close()
                 self.close_connector()
-    
+
     def run_custom_query(self, query: str, values: tuple) -> Optional[tuple]:
         """Execute a custom query on the database and return a single result.
         Args:
