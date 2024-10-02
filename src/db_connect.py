@@ -2,6 +2,18 @@ import pandas as pd
 import psycopg2
 from typing import List, Optional
 
+from .data_parser import generate_header_from_dataframe
+
+def get_table_name_from_header(table_header: List[str]) -> List[str]:
+    """
+    Extracts and returns the table names from a list of table headers.
+    Args:
+        table_header (List[str]): A list of table headers as strings.
+    Returns:
+        List[str]: A list of extracted table names.
+    """
+    return [item.split()[0].strip('"') for item in table_header]
+
 class DbConnect:
     """Class to manage PostgreSQL database connections and operations."""
 
@@ -106,6 +118,45 @@ class DbConnect:
                 # cur.close()
                 self.close_connector()
     
+    def add_data_from_data_frame(self, table_name: str, data_frame: pd.DataFrame) -> None:
+        """
+        Insert data from a DataFrame into the specified table.
+        Args:
+            table_name (str): Name of the table to insert data into.
+            data_frame (pd.DataFrame): DataFrame containing the data to insert.
+        """
+        try:
+            table_header = generate_header_from_dataframe(data_frame)
+            column_names = get_table_name_from_header(table_header)
+
+            column_names = ', '.join(column_names)
+
+            if not self.is_table_exists(table_name):
+                self.create_table(table_name, table_header)
+
+            if not self.is_connected():
+                self._get_connector()
+            
+            cur = self.connector.cursor()
+            
+            for index, row in data_frame.iterrows():
+                values = tuple(row)
+                placeholders = ', '.join(["%s"] * len(values))
+                insert_query = f"INSERT INTO {table_name} ({column_names}) VALUES ({placeholders});"
+                cur.execute(insert_query, values)
+            
+            self.connector.commit()
+        
+        except Exception as e:
+            print(f"Error while adding data from data frame: {e}")
+            if self.connector:
+                self.connector.rollback()
+
+        finally:
+            if self.connector:
+                # cur.close()
+                self.connector.close()
+
     def drop_table(self, table_name: str) -> None:
         """Drop a table from the database by its name.
         Args:
