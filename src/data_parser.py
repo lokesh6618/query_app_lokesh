@@ -20,7 +20,10 @@ def generate_header_from_dataframe(data_frame: pd.DataFrame) -> List[str]:
     columns = []
     for col in data_frame.columns:
         if pd.api.types.is_integer_dtype(data_frame[col]):
-            columns.append(f'"{col}" INT')
+            if data_frame[col].min() < -2147483648 or data_frame[col].max() > 2147483647:
+                columns.append(f'"{col}" BIGINT')
+            else:
+                columns.append(f'"{col}" INT')
         elif pd.api.types.is_float_dtype(data_frame[col]):
             columns.append(f'"{col}" FLOAT')
         else:

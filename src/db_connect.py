@@ -1,10 +1,11 @@
 import pandas as pd
 import psycopg2
+from psycopg2 import sql
 from typing import List, Optional
 
 from .data_parser import generate_header_from_dataframe
 
-def get_table_name_from_header(table_header: List[str]) -> List[str]:
+def get_column_name_from_header(table_header: List[str]) -> List[str]:
     """
     Extracts and returns the table names from a list of table headers.
     Args:
@@ -62,15 +63,23 @@ class DbConnect:
             table_name (str): Name of the table to be created.
             table_headers (list): List of column definitions for the table.
         """
-        create_table_query = f"""
-        CREATE TABLE IF NOT EXISTS {table_name} (
-            {', '.join(table_headers)}
-        );
-        """
+        if not self._is_valid_keyword(table_name):
+            raise ValueError(f"Invalid table name: {table_name}")
+
+        for header in get_column_name_from_header(table_headers):
+            if not self._is_valid_keyword(header):
+                raise ValueError(f"Invalid column name: {header}")
+
+        create_table_query = sql.SQL(
+            "CREATE TABLE IF NOT EXISTS {table} ({fields})"
+        ).format(
+            table=sql.Identifier(table_name),
+            fields=sql.SQL(', ').join(map(sql.SQL, table_headers))
+        )
 
         try:
             self._get_connector()
-            
+
             cur = self.connector.cursor()
             cur.execute(create_table_query)
             self.connector.commit()
@@ -122,9 +131,6 @@ class DbConnect:
         """
         try:
             table_header = generate_header_from_dataframe(data_frame)
-            column_names = get_table_name_from_header(table_header)
-
-            column_names = ', '.join([f'"{col}"' for col in column_names])
 
             if not self.is_table_exists(table_name):
                 self.create_table(table_name, table_header)
@@ -134,11 +140,21 @@ class DbConnect:
 
             cur = self.connector.cursor()
 
-            for index, row in data_frame.iterrows():
-                values = tuple(row)
-                placeholders = ', '.join(["%s"] * len(values))
-                insert_query = f"INSERT INTO {table_name} ({column_names}) VALUES ({placeholders});"
-                cur.execute(insert_query, values)
+            if not self._is_valid_keyword(table_name):
+                raise ValueError(f"Invalid table name: {table_name}")
+
+            columns = list(data_frame.columns)
+            columns_sql = sql.SQL(', ').join(map(sql.Identifier, columns))
+            placeholders = sql.SQL(', ').join(sql.Placeholder() * len(columns))
+
+            final_query = sql.SQL("INSERT INTO {table} ({fields}) VALUES ({values})").format(
+                table=sql.Identifier(table_name),
+                fields=columns_sql,
+                values=placeholders
+            )
+
+            for _, row in data_frame.iterrows():
+                cur.execute(final_query, tuple(row))
 
             self.connector.commit()
 
@@ -218,3 +234,13 @@ class DbConnect:
         finally:
             if self.connector:
                 self.close_connector()
+
+    def _is_valid_keyword(self, name: str) -> bool:
+        """Checks if the provided name is a reserved SQL keyword 
+        (e.g., SELECT, DROP, INSERT, DELETE).
+        Args:
+            name (str): The name to check.
+        Returns:
+            bool: True if the name is a reserved SQL keyword, False otherwise.
+        """
+        return not name.upper() in {'SELECT', 'DROP', 'INSERT', 'DELETE'}
